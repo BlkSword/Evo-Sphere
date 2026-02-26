@@ -1,0 +1,22 @@
+# Binaries
+server
+server.exe
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+*.test
+
+# Development files
+.vscode
+.idea
+*.md
+.git
+.gitignore
+
+# Build artifacts
+/bin
+/dist

@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+build
+
+# Development files
+.vscode
+.idea
+*.md
+.git
+.gitignore
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+coverage
+
+# Misc
+*.log
+*.tmp
+.env.local
+.env.*.local
