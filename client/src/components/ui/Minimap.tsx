@@ -2,16 +2,22 @@ import { useRef, useEffect, useState } from 'react'
 import { Map, Maximize2, Minimize2 } from 'lucide-react'
 import { useCellStore } from '../../stores/cellStore'
 import { useAppStore } from '../../stores/appStore'
+import { useMobile } from '../../hooks'
 
-const MINIMAP_SIZE = 180
 const UPDATE_INTERVAL = 500 // 更新间隔(ms)
 
 export function Minimap() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { cells, viewport, worldBounds, setViewport } = useCellStore()
   const { showMinimap } = useAppStore()
+  const { isMobile } = useMobile()
   const [isExpanded, setIsExpanded] = useState(false)
   const [cellPoints, setCellPoints] = useState<{ x: number; y: number; age: number }[]>([])
+  
+  // 移动端使用更小的尺寸
+  const MOBILE_MINIMAP_SIZE = 120
+  const DESKTOP_MINIMAP_SIZE = 180
+  const MINIMAP_SIZE = isMobile ? MOBILE_MINIMAP_SIZE : DESKTOP_MINIMAP_SIZE
 
   const displaySize = isExpanded ? Math.floor(MINIMAP_SIZE * 1.5) : MINIMAP_SIZE
   const worldWidth = worldBounds.maxX - worldBounds.minX
@@ -140,8 +146,8 @@ export function Minimap() {
   if (!showMinimap) return null
 
   return (
-    <div className="absolute bottom-4 right-4 z-20">
-      <div className="cyber-panel p-3">
+    <div className={`absolute z-20 ${isMobile ? 'bottom-2 right-2' : 'bottom-4 right-4'}`}>
+      <div className={`cyber-panel ${isMobile ? 'p-2' : 'p-3'}`}>
         {/* 角标 */}
         <div className="cyber-corner-tl" />
         <div className="cyber-corner-tr" />
@@ -149,22 +155,26 @@ export function Minimap() {
         <div className="cyber-corner-br" />
 
         {/* 标题栏 */}
-        <div className="flex items-center justify-between mb-2">
+        <div className={`flex items-center justify-between ${isMobile ? 'mb-1' : 'mb-2'}`}>
           <div className="flex items-center gap-2">
-            <Map className="w-4 h-4 cyber-text" />
-            <span
-              className="text-xs font-bold tracking-wider cyber-text"
-              style={{ fontFamily: 'var(--font-mono)' }}
-            >
-              世界概览
-            </span>
+            <Map className={`cyber-text ${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+            {!isMobile && (
+              <span
+                className="text-xs font-bold tracking-wider cyber-text"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              >
+                世界概览
+              </span>
+            )}
           </div>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-cyan-400/60 hover:text-cyan-400 transition-colors"
-          >
-            {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="text-cyan-400/60 hover:text-cyan-400 transition-colors"
+            >
+              {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
 
         {/* 小地图画布 */}
@@ -180,12 +190,14 @@ export function Minimap() {
         />
 
         {/* 提示 */}
-        <p
-          className="text-[10px] text-cyan-400/40 text-center mt-2"
-          style={{ fontFamily: 'var(--font-mono)' }}
-        >
-          点击跳转
-        </p>
+        {!isMobile && (
+          <p
+            className="text-[10px] text-cyan-400/40 text-center mt-2"
+            style={{ fontFamily: 'var(--font-mono)' }}
+          >
+            点击跳转
+          </p>
+        )}
       </div>
     </div>
   )

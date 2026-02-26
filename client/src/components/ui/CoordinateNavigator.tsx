@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Crosshair, Navigation, Home } from 'lucide-react'
 import { useCellStore } from '../../stores/cellStore'
+import { useMobile } from '../../hooks'
 
 export function CoordinateNavigator() {
   const { viewport, setViewport, worldBounds } = useCellStore()
+  const { isMobile } = useMobile()
   const [inputX, setInputX] = useState('')
   const [inputY, setInputY] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
@@ -67,6 +69,9 @@ export function CoordinateNavigator() {
     { label: '南', x: 500, y: 750 },
     { label: '西南', x: 250, y: 750 },
   ]
+
+  // 移动端不显示此组件
+  if (isMobile) return null
 
   return (
     <div className="absolute top-4 right-4 z-20">

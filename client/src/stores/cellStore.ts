@@ -28,6 +28,8 @@ interface CellStore {
   setPopulation: (population: number) => void
   updateTrails: () => void
   clearTrails: () => void
+  clearCells: () => void
+  randomizeCells: () => void
 }
 
 // 世界配置 (细胞坐标)
@@ -180,4 +182,34 @@ export const useCellStore = create<CellStore>((set, get) => ({
   },
 
   clearTrails: () => set({ trails: new Map() }),
+
+  clearCells: () => {
+    set({ 
+      cells: new Map(),
+      trails: new Map(),
+      population: 0,
+      generation: 0 
+    })
+  },
+
+  randomizeCells: () => {
+    const cells = new Map<string, number>()
+    const { worldBounds } = get()
+    const density = 0.15 // 15% 的密度
+    
+    for (let x = worldBounds.minX; x < worldBounds.maxX; x += 2) {
+      for (let y = worldBounds.minY; y < worldBounds.maxY; y += 2) {
+        if (Math.random() < density) {
+          cells.set(`${x},${y}`, 1)
+        }
+      }
+    }
+    
+    set({ 
+      cells,
+      trails: new Map(),
+      population: cells.size,
+      generation: 0 
+    })
+  },
 }))

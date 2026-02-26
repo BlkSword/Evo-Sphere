@@ -426,3 +426,117 @@ html, body, #root {
   animation: scan 3s linear infinite;
   box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
 }
+
+/* ========================================
+   移动端适配样式
+   ======================================== */
+
+/* 移动端基础优化 */
+@media (max-width: 767px) {
+  /* 禁用文本选择，提升触摸体验 */
+  * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* 允许输入框选择文本 */
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  
+  /* 减小滚动条尺寸 */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  
+  /* 优化触摸按钮 */
+  .cyber-btn {
+    min-height: 36px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  
+  /* 移动端滑块 */
+  .cyber-slider {
+    height: 6px;
+  }
+  
+  .cyber-slider::-webkit-slider-thumb {
+    width: 16px;
+    height: 16px;
+  }
+  
+  /* 移动端角标缩小 */
+  .cyber-corner {
+    width: 8px;
+    height: 8px;
+  }
+  
+  /* 扫描线效果减弱 */
+  .scanlines {
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 3px,
+      rgba(0, 240, 255, 0.01) 3px,
+      rgba(0, 240, 255, 0.01) 6px
+    );
+  }
+}
+
+/* 横屏模式优化 */
+@media (max-width: 767px) and (orientation: landscape) {
+  /* 横屏时面板更紧凑 */
+  .cyber-panel {
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* 平板适配 */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .cyber-btn {
+    min-height: 40px;
+  }
+}
+
+/* 防止 iOS 橡皮筋效果 */
+html, body {
+  overscroll-behavior: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* 确保内容区域可滚动（如果需要） */
+#root {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 移动端手势提示 */
+.mobile-hint {
+  @apply fixed bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none;
+  @apply px-4 py-2 rounded-full;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--cyber-cyan);
+  font-size: 12px;
+  animation: fadeOut 3s ease-in-out forwards;
+  animation-delay: 2s;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+}

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useCellStore } from './stores/cellStore'
 import { useAppStore } from './stores/appStore'
-import { useWebSocket } from './hooks/useWebSocket'
+import { useWebSocket, useMobile } from './hooks'
 import { LoadingScreen } from './components/ui/LoadingScreen'
 import { StatsOverlay } from './components/ui/StatsOverlay'
 import { CoordinateNavigator } from './components/ui/CoordinateNavigator'
 import { Minimap } from './components/ui/Minimap'
+import { MobileControls } from './components/ui/MobileControls'
 import { clamp } from './utils/math'
 
 // 配置参数
@@ -22,6 +23,12 @@ export function App() {
     isDragging: false,
     lastX: 0,
     lastY: 0,
+  })
+  const touchState = useRef({
+    isDragging: false,
+    lastX: 0,
+    lastY: 0,
+    lastDistance: 0,
   })
   const [fps, setFps] = useState(60)
   const fpsRef = useRef({ frames: 0, lastTime: performance.now() })
@@ -48,6 +55,8 @@ export function App() {
   } = useAppStore()
 
   const { isConnected } = useWebSocket()
+  const { isMobile } = useMobile()
+  const [showMobileHint, setShowMobileHint] = useState(true)
 
   // 计算实际细胞大小（像素）
   const cellSize = CELL_SIZE_BASE * zoomLevel
@@ -273,6 +282,19 @@ export function App() {
     return () => cancelAnimationFrame(animationRef.current)
   }, [animate])
 
+  // 移动端提示自动隐藏
+  useEffect(() => {
+    if (isMobile && showMobileHint) {
+      const timer = setTimeout(() => {
+        setShowMobileHint(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [isMobile, showMobileHint])
+
+  // 获取 store actions
+  const { clearCells, randomizeCells } = useCellStore()
+
   // 处理鼠标事件 - 拖拽
   const handleMouseDown = (e: React.MouseEvent) => {
     dragState.current = {
@@ -320,6 +342,115 @@ export function App() {
   const handleMouseLeave = () => {
     dragState.current.isDragging = false
   }
+
+  // 触摸事件处理 - 单指拖拽、双指缩放
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // 单指 - 开始拖拽
+      touchState.current = {
+        isDragging: true,
+        lastX: e.touches[0].clientX,
+        lastY: e.touches[0].clientY,
+        lastDistance: 0,
+      }
+    } else if (e.touches.length === 2) {
+      // 双指 - 准备缩放
+      touchState.current.isDragging = false
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      touchState.current.lastDistance = distance
+    }
+  }, [])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault() // 防止页面滚动
+    
+    if (e.touches.length === 1 && touchState.current.isDragging) {
+      // 单指拖拽
+      const touch = e.touches[0]
+      const dx = touch.clientX - touchState.current.lastX
+      const dy = touch.clientY - touchState.current.lastY
+
+      const cellDx = -dx / cellSize
+      const cellDy = -dy / cellSize
+
+      const viewWidth = viewport.x2 - viewport.x1
+      const viewHeight = viewport.y2 - viewport.y1
+
+      let newX1 = viewport.x1 + cellDx
+      let newY1 = viewport.y1 + cellDy
+
+      newX1 = clamp(newX1, worldBounds.minX, worldBounds.maxX - viewWidth)
+      newY1 = clamp(newY1, worldBounds.minY, worldBounds.maxY - viewHeight)
+
+      setViewport({
+        x1: newX1,
+        y1: newY1,
+        x2: newX1 + viewWidth,
+        y2: newY1 + viewHeight,
+      })
+
+      touchState.current.lastX = touch.clientX
+      touchState.current.lastY = touch.clientY
+    } else if (e.touches.length === 2) {
+      // 双指缩放
+      const distance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      )
+      
+      if (touchState.current.lastDistance > 0) {
+        const scale = distance / touchState.current.lastDistance
+        const newZoom = clamp(zoomLevel * scale, 0.5, 3)
+        
+        if (Math.abs(newZoom - zoomLevel) > 0.01) {
+          // 计算双指中心点
+          const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+          const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+          
+          const canvas = canvasRef.current
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect()
+            const touchX = centerX - rect.left
+            const touchY = centerY - rect.top
+            
+            const { x: worldCellX, y: worldCellY } = screenToCell(touchX, touchY)
+            
+            const newCellSize = CELL_SIZE_BASE * newZoom
+            const canvasWidth = canvas.width
+            const canvasHeight = canvas.height
+            const newViewWidth = canvasWidth / newCellSize
+            const newViewHeight = canvasHeight / newCellSize
+            
+            const zoomFactor = newZoom / zoomLevel
+            const newX1 = worldCellX - (worldCellX - viewport.x1) / zoomFactor
+            const newY1 = worldCellY - (worldCellY - viewport.y1) / zoomFactor
+            
+            let finalX1 = clamp(newX1, worldBounds.minX, worldBounds.maxX - newViewWidth)
+            let finalY1 = clamp(newY1, worldBounds.minY, worldBounds.maxY - newViewHeight)
+            
+            setViewport({
+              x1: finalX1,
+              y1: finalY1,
+              x2: finalX1 + newViewWidth,
+              y2: finalY1 + newViewHeight,
+            })
+            
+            setZoomLevel(newZoom)
+          }
+        }
+      }
+      
+      touchState.current.lastDistance = distance
+    }
+  }, [cellSize, viewport, worldBounds, zoomLevel, screenToCell, setViewport, setZoomLevel])
+
+  const handleTouchEnd = useCallback(() => {
+    touchState.current.isDragging = false
+    touchState.current.lastDistance = 0
+  }, [])
 
   // 处理滚轮缩放 - 使用非被动事件监听器
   useEffect(() => {
@@ -391,6 +522,9 @@ export function App() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="absolute inset-0"
         style={{
           cursor: dragState.current.isDragging ? 'grabbing' : 'grab',
@@ -409,22 +543,37 @@ export function App() {
             fps={fps}
           />
 
-          {/* 坐标定位器 */}
+          {/* 坐标定位器 - 桌面端显示 */}
           <CoordinateNavigator />
 
           {/* 小地图 */}
           <Minimap />
 
+          {/* 移动端控制面板 */}
+          {isMobile && (
+            <MobileControls 
+              onClear={clearCells}
+              onRandomize={randomizeCells}
+            />
+          )}
+
+          {/* 移动端手势提示 */}
+          {isMobile && showMobileHint && (
+            <div className="mobile-hint">
+              单指拖拽 · 双指缩放
+            </div>
+          )}
+
           {/* 暂停指示器 */}
           {isPaused && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-30">
-              <div className="cyber-panel px-8 py-4">
+              <div className={`cyber-panel ${isMobile ? 'px-4 py-2' : 'px-8 py-4'}`}>
                 <div className="cyber-corner-tl" />
                 <div className="cyber-corner-tr" />
                 <div className="cyber-corner-bl" />
                 <div className="cyber-corner-br" />
                 <span
-                  className="text-2xl font-bold tracking-[0.5em] cyber-text-pink"
+                  className={`font-bold tracking-[0.5em] cyber-text-pink ${isMobile ? 'text-lg' : 'text-2xl'}`}
                   style={{ fontFamily: 'var(--font-mono)' }}
                 >
                   已暂停
